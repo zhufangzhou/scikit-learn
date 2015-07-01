@@ -15,6 +15,7 @@
 # Licence: BSD 3 clause
 
 from libc.stdlib cimport calloc, free, realloc, qsort
+from libcpp.vector cimport vector
 
 from libc.string cimport memcpy, memset
 from libc.math cimport log as ln
@@ -3214,7 +3215,58 @@ cdef class Tree:
         if self.n_outputs == 1:
             out = out.reshape(X.shape[0], self.max_n_classes)
         return out
+    
+    cpdef vector[vector[SIZE_t]] apply_path(self, object X):
+        """Finds path along the tree for each sample in X."""
+        if issparse(X):
+            raise ValueError("X should be dense matrix.")
+        else:
+            return self._apply_path_dense(X)
 
+    cdef inline vector[vector[SIZE_t]] _apply_path_dense(self, object X):
+        """Finds path along the tree for each sample in X."""
+
+        # Check input 
+        if not isinstance(X, np.ndarray):
+            raise ValueError("X should be in np.ndarray format, got %s"
+                            % type(X))
+
+        if X.dtype != DTYPE:
+            raise ValueError("X.dtype should be np.float32, got %s"
+                            % X.dtype)
+
+        # Extract input
+        cdef np.ndarray X_ndarray = X
+        cdef DTYPE_t* X_ptr = <DTYPE_t*> X_ndarray.data
+        cdef SIZE_t X_sample_stride = <SIZE_t> X.strides[0] / <SIZE_t> X.itemsize
+        cdef SIZE_t X_fx_stride = <SIZE_t> X.strides[1] / <SIZE_t> X.itemsize
+        cdef SIZE_t n_samples = X.shape[0]
+
+
+        # Initialize output
+        cdef vector[vector[SIZE_t]] out
+
+        # Initialize auxiliary data-structure
+        cdef Node* node = NULL
+        cdef SIZE_t i = 0
+
+        with nogil:
+            for i in range(n_samples):
+                out.push_back(vector[SIZE_t]())
+                node = self.nodes
+                # While node not a leaf
+                while node.left_child != _TREE_LEAF:
+                    # ... and node.right_child != _TREE_LEAF:
+                    if X_ptr[X_sample_stride * i +
+                             X_fx_stride * node.feature] <= node.threshold:
+                        node = &self.nodes[node.left_child]
+                    else:
+                        node = &self.nodes[node.right_child]
+                    out[i].push_back(<SIZE_t>(node - self.nodes))
+
+        return out
+
+ 
     cpdef np.ndarray apply(self, object X):
         """Finds the terminal region (=leaf node) for each sample in X."""
         if issparse(X):

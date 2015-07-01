@@ -98,6 +98,7 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator,
         self.n_outputs_ = None
         self.classes_ = None
         self.n_classes_ = None
+        self.node_count = None
 
         self.tree_ = None
         self.max_features_ = None
@@ -309,6 +310,8 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator,
             self.n_classes_ = self.n_classes_[0]
             self.classes_ = self.classes_[0]
 
+        self.node_count = self.tree_.node_count
+
         return self
 
     def _validate_X_predict(self, X, check_input):
@@ -382,6 +385,31 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator,
 
             else:
                 return proba[:, :, 0]
+
+    def apply_path(self, X, check_input=True):
+        """
+        Returns the list of node indices along the path from root to leaf that each sample is predicted as.
+
+        Parameters
+        ----------
+        X : array_like, shape = [n_samples, n_features]
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32``
+
+        check_input : boolean, (default=True)
+            Allow to bypass several input checking.
+            Don't use this parameter unless you know what you do.
+
+        Returns
+        -------
+        X_path: 2-D list, shape = [n_sampls, path_length]
+            For each datapoint x in X, return a list of node indices
+            x reach in the tree. All the indices are numberd with 
+            ``[0, self.tree_.node_count)``, possibly with gaps in the
+            numbering.
+        """
+        X = self._validate_X_predict(X, check_input)
+        return self.tree_.apply_path(X)
 
     def apply(self, X, check_input=True):
         """

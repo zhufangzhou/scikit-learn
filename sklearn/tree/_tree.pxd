@@ -8,6 +8,8 @@
 
 # See _tree.pyx for details.
 
+from libcpp.vector cimport vector
+
 import numpy as np
 cimport numpy as np
 
@@ -187,6 +189,8 @@ cdef class Tree:
     cdef np.ndarray _get_node_ndarray(self)
 
     cpdef np.ndarray predict(self, object X)
+    cpdef vector[vector[SIZE_t]] apply_path(self, object X)
+    cdef vector[vector[SIZE_t]] _apply_path_dense(self, object X)
     cpdef np.ndarray apply(self, object X)
     cdef np.ndarray _apply_dense(self, object X)
     cdef np.ndarray _apply_sparse_csr(self, object X)
